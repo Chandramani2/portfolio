@@ -355,8 +355,7 @@ footer{background:var(--s1);border-top:1px solid var(--b1);padding:24px 56px;dis
       <div>
         <div class="sec-lbl">Work History</div>
         <h2 class="sec-ttl">4 years.<br><em>3 companies.</em></h2>
-        <p class="sec-sub">// Every bullet is something I can explain in an interview — the problem, the decision, the tradeoff, the result.</p>
-      </div>
+        </div>
     </div>
     <hr class="sec-rule">
 
@@ -380,8 +379,7 @@ footer{background:var(--s1);border-top:1px solid var(--b1);padding:24px 56px;dis
                 <strong>Redis sliding-window rate limiter — fixed broken per-pod counters, cut infra cost 18%.</strong>
                 We had per-pod in-memory rate limit counters. With 10 pods, each user effectively got 10× their actual limit — VIP users were uncapped, free-tier users blew through limits. I moved rate limiting to Redis using sorted sets: ZADD the current request timestamp, ZREMRANGEBYSCORE to prune the window, ZCARD to count, all in one pipeline. Three tiers (free: 60/min, premium: 300/min, VIP: 1000/min) from the JWT claim. Fail-open on Redis error so a cache outage never takes down the API.
                 <strong>Result: 18% infra cost reduction</strong> by eliminating over-provisioning that was compensating for broken limits.
-                <div class="inote"><p>"Walk me through your rate limiting implementation." — Per-pod counters don't share state across a fleet. Sorted sets beat INCR for a sliding window because you can prune expired entries. I'll explain the four pipelined commands and why fail-open is the right default.</p></div>
-              </div>
+                </div>
             </li>
 
             <li class="tbullet">
@@ -390,7 +388,6 @@ footer{background:var(--s1);border-top:1px solid var(--b1);padding:24px 56px;dis
                 <strong>S3 presigned URL media system — eliminated the server from the upload hot path, 90% load reduction.</strong>
                 Original upload flow: client → API server → S3. For AI-generated images (1–4MB each) at high concurrency, this was saturating our backend connections. Redesigned so clients upload directly to S3 via short-lived presigned URLs. The server only does two things: (1) validates auth and generates the signed URL, (2) listens for S3 event notifications to confirm completion and update the database. The server never touches file bytes.
                 <strong>Result: 90% reduction in server upload load, 35% improvement in upload latency.</strong>
-                <div class="inote"><p>"How do you handle media uploads at scale?" — Presigned URLs, S3 event notification flow, handling upload failures and partial uploads, why this pattern is standard at scale (Twitter, Dropbox all use it).</p></div>
               </div>
             </li>
 
@@ -400,7 +397,6 @@ footer{background:var(--s1);border-top:1px solid var(--b1);padding:24px 56px;dis
                 <strong>Redis LIST context cache for LLM prompt assembly — eliminated MongoDB roundtrip on every AI request.</strong>
                 Every AI request queried MongoDB for the last N conversation messages to build the LLM prompt. For active users chatting every few seconds, this was a database hit on every message. Built a Redis LIST cache (RPUSH new turns, LTRIM to 100 entries, 2-hour TTL). Cache miss → backfill from MongoDB and warm. Also added Redis SETNX job-ID dedup so Kafka redelivery after a pod restart doesn't trigger a duplicate LLM call and double-charge billing.
                 <strong>Result: ~1ms context fetch vs ~8ms MongoDB. Zero duplicate LLM calls on crash-recovery.</strong>
-                <div class="inote"><p>"How did you handle idempotency in Kafka consumers?" — SETNX dedup pattern, what happens on crash-and-replay, why the TTL window covers all plausible reconnect scenarios.</p></div>
               </div>
             </li>
 
@@ -409,7 +405,6 @@ footer{background:var(--s1);border-top:1px solid var(--b1);padding:24px 56px;dis
               <div class="tbtext">
                 <strong>Fixed production WebSocket panic during rolling deploys — race condition on closed channel.</strong>
                 Intermittent panics only during deployments. Correlated crash timestamps with deploy events and traced it to the WebSocket Hub's unregister path: a concurrent goroutine was writing to a <code>client.send</code> channel after it had already been closed by unregister. Fixed by ensuring writes to the send channel use a non-blocking select with a default case, and by auditing the close-vs-write ordering across all goroutines. Zero panics since. Also added a test that reproduces the race with <code>go test -race</code>.
-                <div class="inote"><p>"Tell me about a production bug you fixed." — Strong answer: symptom, debugging process (timestamp correlation), root cause (write to closed channel in Go), the specific fix, and the regression test. Demonstrates deep Go concurrency understanding.</p></div>
               </div>
             </li>
 
@@ -419,7 +414,6 @@ footer{background:var(--s1);border-top:1px solid var(--b1);padding:24px 56px;dis
                 <strong>Prometheus observability for AI pipeline — MTTR reduced 30% by making invisible bottlenecks visible.</strong>
                 When I joined, we had uptime monitoring but no AI-specific signals: GPU pod startup time, LLM request queue depth, WebSocket slow-client eviction rate, Kafka consumer lag per partition. I instrumented custom Prometheus histograms for each. Configured AlertManager routing critical events (consumer lag &gt;500, slow client evictions spiking) to Slack with runbook links. Observability became the reason we caught two incidents before users noticed.
                 <strong>Result: 30% reduction in mean time to recovery.</strong>
-                <div class="inote"><p>"What metrics do you instrument?" — I'll describe the four signals I added and why each one was previously invisible, and explain the specific Kafka lag alert that caught an incident before users reported it.</p></div>
               </div>
             </li>
 
@@ -429,7 +423,6 @@ footer{background:var(--s1);border-top:1px solid var(--b1);padding:24px 56px;dis
                 <strong>Docker multi-stage distroless builds — 60% image size reduction, CI from 12min to under 4min.</strong>
                 CI builds were taking 12–15 minutes. Root cause: Go module downloads on every run because <code>COPY . .</code> came before <code>go mod download</code>, busting the cache on every code change. Restructured: Stage 1 copies only go.mod/go.sum and runs go mod download (cached until dependencies change). Stage 2 compiles. Stage 3 is distroless/static (~18MB, no shell). Tightened GitHub Actions caching with layer-hash keys.
                 <strong>Result: 60% smaller images. CI from 12min → under 4min.</strong>
-                <div class="inote"><p>"How do you optimise Docker builds?" — Layer caching strategy, why go.mod/go.sum must be copied before application code, what distroless buys you (no shell = smaller attack surface), GitHub Actions cache-key approach.</p></div>
               </div>
             </li>
 
@@ -439,7 +432,6 @@ footer{background:var(--s1);border-top:1px solid var(--b1);padding:24px 56px;dis
                 <strong>pgvector HNSW ANN search — sub-50ms P99 over 10M+ embeddings, 3× faster than naive full-table scan.</strong>
                 The memory retrieval component queries the most relevant conversation memories to inject into LLM prompts. Core: pgvector HNSW index on 1536-dim embeddings plus a partial compound B-tree filter on (user_id, persona_id). The B-tree prunes the search to the relevant user's memories before the ANN scan — this filter is what gives the 3× speedup over a naive full-table ANN. Tuned ef_search to 40 (97% Recall@5 at ~6ms query time).
                 <strong>Result: sub-50ms P99 ANN search over 10M+ vectors.</strong>
-                <div class="inote"><p>"How did you optimise vector search?" — HNSW vs IVFFlat tradeoffs, why the partial B-tree filter is the critical optimisation (not just the HNSW index), what ef_search controls, and the recall/latency tradeoff curve.</p></div>
               </div>
             </li>
 
